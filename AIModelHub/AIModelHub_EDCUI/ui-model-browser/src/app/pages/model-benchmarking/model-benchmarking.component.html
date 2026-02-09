@@ -1,0 +1,356 @@
+<div class="benchmarking-page">
+  <section class="hero">
+    <div class="hero-top">
+      <div class="hero-title">
+        <p class="eyebrow">Benchmarking Studio</p>
+        <h1>Model Benchmarking</h1>
+        <p class="subtitle">
+          Execute multiple models, standardize outputs, and surface a clear ranking
+          for selection and deployment.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button class="btn primary">Create Benchmark</button>
+        <button class="btn ghost">Compare Selected</button>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-card">
+        <div class="stat-label">Models queued</div>
+        <div class="stat-value">4</div>
+        <div class="stat-foot">Last run 2h ago</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Primary dataset</div>
+        <div class="stat-value">Vision-Set A</div>
+        <div class="stat-foot">1,200 samples</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Composite score</div>
+        <div class="stat-value">0.87</div>
+        <div class="stat-foot">Weighted accuracy, latency, cost</div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-label">Top candidate</div>
+        <div class="stat-value">Iris-V2</div>
+        <div class="stat-foot">Balanced and stable</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="workspace-grid">
+    <div class="stack">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Model pool</h2>
+            <p class="panel-subtitle">Select 2 or more models for comparison</p>
+          </div>
+          <span class="badge live">{{ selectedCount }} selected</span>
+        </div>
+
+        <div class="pool-alert" *ngIf="assetsError">{{ assetsError }}</div>
+
+        <div class="model-filters">
+          <button class="pill active">All</button>
+          <button class="pill">Vision</button>
+          <button class="pill">Tabular</button>
+          <button class="pill">NLP</button>
+        </div>
+
+        <div class="model-list">
+          <div class="model-item" *ngIf="isLoadingAssets">
+            <div class="model-id">Loading assets...</div>
+            <div class="model-meta">Fetching catalog</div>
+            <div class="model-status neutral">Hold</div>
+          </div>
+          <div
+            class="model-item selectable"
+            *ngFor="let asset of modelPoolAssets"
+            [class.active]="isAssetSelected(asset)"
+            (click)="toggleAssetSelection(asset)"
+          >
+            <div class="model-select">
+              <input type="checkbox" [checked]="isAssetSelected(asset)" />
+            </div>
+            <div>
+              <div class="model-id">{{ asset.name }}</div>
+              <div class="model-meta">{{ getAssetMeta(asset) }}</div>
+            </div>
+            <div class="model-status success">Ready</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Data and metrics</h2>
+            <p class="panel-subtitle">Standardize evaluation to compare outcomes</p>
+          </div>
+          <span class="badge outline">Unified schema</span>
+        </div>
+
+        <div class="chip-grid">
+          <div class="chip-group">
+            <div class="chip-title">Datasets</div>
+            <div class="chips">
+              <span class="chip active">Vision-Set A</span>
+              <span class="chip">Edge-Validation</span>
+              <span class="chip">Holdout-Q2</span>
+            </div>
+          </div>
+          <div class="chip-group">
+            <div class="chip-title">Metrics</div>
+            <div class="chips">
+              <span class="chip active">Accuracy</span>
+              <span class="chip active">Latency</span>
+              <span class="chip">Drift</span>
+              <span class="chip">Cost</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-cards">
+          <div class="metric-card">
+            <div class="metric-title">Latency budget</div>
+            <div class="metric-value">350ms</div>
+            <div class="metric-foot">Target per sample</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Cost ceiling</div>
+            <div class="metric-value">$0.015</div>
+            <div class="metric-foot">Per 1k inferences</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Stability</div>
+            <div class="metric-value">High</div>
+            <div class="metric-foot">3 month window</div>
+          </div>
+        </div>
+
+        <div class="input-block">
+          <div class="input-header">
+            <div>
+              <h3>Benchmark inputs</h3>
+              <p class="panel-subtitle">Provide a sample input or upload a dataset to generate rankings</p>
+            </div>
+            <div class="input-tabs">
+              <button class="pill" [class.active]="inputMode === 'single'" (click)="setInputMode('single')">
+                Single input
+              </button>
+              <button class="pill" [class.active]="inputMode === 'dataset'" (click)="setInputMode('dataset')">
+                Dataset upload
+              </button>
+            </div>
+          </div>
+
+          <div class="demo-banner">
+            <span class="badge outline">Demo</span>
+            <span>{{ statusMessage }}</span>
+          </div>
+
+          <div class="input-grid">
+            <div class="input-card" [class.muted]="inputMode !== 'single'">
+              <label class="field-label" for="benchmark-input">Sample input (JSON)</label>
+              <textarea
+                id="benchmark-input"
+                class="field-textarea"
+                rows="8"
+                placeholder='{"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}'
+                [(ngModel)]="sampleInput"
+                [disabled]="inputMode !== 'single'"
+              ></textarea>
+              <div class="field-foot">Ideal for quick smoke tests before full dataset evaluation.</div>
+            </div>
+
+            <div class="input-card" [class.muted]="inputMode !== 'dataset'">
+              <label class="field-label" for="benchmark-file">Dataset upload</label>
+              <div class="upload-zone">
+                <input
+                  id="benchmark-file"
+                  class="file-input"
+                  type="file"
+                  accept=".csv,.jsonl,.json"
+                  (change)="handleFileSelection($event)"
+                  [disabled]="inputMode !== 'dataset'"
+                />
+                <label class="upload-label" for="benchmark-file">Drop CSV/JSONL or browse files</label>
+                <div class="upload-meta">Max 500MB • Schema v2 • UTF-8</div>
+                <div class="upload-meta" *ngIf="selectedFileName">Selected: {{ selectedFileName }}</div>
+              </div>
+              <div class="dataset-list">
+                <div class="dataset-item">
+                  <div>
+                    <div class="dataset-name">Vision-Set A</div>
+                    <div class="dataset-meta">1,200 samples • 48MB</div>
+                  </div>
+                  <span class="model-status success">Ready</span>
+                </div>
+                <div class="dataset-item">
+                  <div>
+                    <div class="dataset-name">Edge-Validation</div>
+                    <div class="dataset-meta">600 samples • 21MB</div>
+                  </div>
+                  <span class="model-status warning">Queued</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-actions">
+            <button class="btn primary" (click)="runRanking()" [disabled]="isRunning">
+              {{ isRunning ? 'Running...' : 'Run ranking' }}
+            </button>
+            <button class="btn subtle" (click)="validateSchema()" [disabled]="isRunning">
+              Validate schema
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel recipe">
+      <div class="panel-header">
+        <div>
+          <h2>Benchmark recipe</h2>
+          <p class="panel-subtitle">Configure execution, normalization, and scoring</p>
+        </div>
+        <span class="badge solid">Draft v0.4</span>
+      </div>
+
+      <div class="recipe-grid">
+        <div class="recipe-card">
+          <div class="recipe-label">Execution mode</div>
+          <div class="recipe-value">Parallel batch</div>
+          <div class="recipe-foot">Warmup 3, retries 1</div>
+        </div>
+        <div class="recipe-card">
+          <div class="recipe-label">Output mapping</div>
+          <div class="recipe-value">Schema v2</div>
+          <div class="recipe-foot">Normalize labels and scores</div>
+        </div>
+        <div class="recipe-card">
+          <div class="recipe-label">Scoring weights</div>
+          <div class="recipe-value">Acc 55, Lat 25, Cost 20</div>
+          <div class="recipe-foot">Composite objective</div>
+        </div>
+        <div class="recipe-card">
+          <div class="recipe-label">Guardrails</div>
+          <div class="recipe-value">Latency and drift gates</div>
+          <div class="recipe-foot">Fail fast on outliers</div>
+        </div>
+      </div>
+
+      <div class="queue">
+        <div class="queue-header">
+          <h3>Run queue</h3>
+          <button class="btn subtle">Preview run</button>
+        </div>
+        <div class="queue-steps">
+          <div class="queue-step done">
+            <div class="step-index">1</div>
+            <div class="step-body">
+              <div class="step-title">Validate assets</div>
+              <div class="step-meta">4 models, 0 errors</div>
+            </div>
+          </div>
+          <div class="queue-step active">
+            <div class="step-index">2</div>
+            <div class="step-body">
+              <div class="step-title">Warmup stage</div>
+              <div class="step-meta">Target 3 runs</div>
+            </div>
+          </div>
+          <div class="queue-step">
+            <div class="step-index">3</div>
+            <div class="step-body">
+              <div class="step-title">Benchmark execution</div>
+              <div class="step-meta">1,200 samples</div>
+            </div>
+          </div>
+          <div class="queue-step">
+            <div class="step-index">4</div>
+            <div class="step-body">
+              <div class="step-title">Aggregate scores</div>
+              <div class="step-meta">Generate ranking</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="results-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Ranking preview</h2>
+          <p class="panel-subtitle">Composite score with metric breakdown</p>
+        </div>
+        <span class="badge outline">Simulated</span>
+      </div>
+
+      <div class="ranking-table">
+        <div class="ranking-row header">
+          <span>Rank</span>
+          <span>Model</span>
+          <span>Score</span>
+          <span>Accuracy</span>
+          <span>Latency</span>
+          <span>Cost</span>
+        </div>
+        <div class="ranking-row" *ngFor="let row of rankingRows" [class.top]="row.top">
+          <span>{{ row.rank }}</span>
+          <span>{{ row.model }}</span>
+          <span>{{ row.score | number: '1.2-2' }}</span>
+          <span>{{ row.accuracy | number: '1.2-2' }}</span>
+          <span>{{ row.latency }}</span>
+          <span>{{ row.cost }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel recommendation">
+      <div class="panel-header">
+        <div>
+          <h2>Recommendation</h2>
+          <p class="panel-subtitle">Best fit based on constraints and objectives</p>
+        </div>
+        <span class="badge solid">Proposed</span>
+      </div>
+
+      <div class="recommendation-body">
+        <div class="candidate">
+          <div class="candidate-name">Iris-V2</div>
+          <div class="candidate-desc">Strong accuracy, balanced latency, lowest variance</div>
+        </div>
+
+        <div class="signal-grid">
+          <div class="signal">
+            <div class="signal-title">Confidence</div>
+            <div class="signal-value">High</div>
+          </div>
+          <div class="signal">
+            <div class="signal-title">Risk</div>
+            <div class="signal-value">Low</div>
+          </div>
+          <div class="signal">
+            <div class="signal-title">Cost impact</div>
+            <div class="signal-value">Neutral</div>
+          </div>
+        </div>
+
+        <div class="recommendation-notes">
+          <div class="note">
+            Recommended for production rollout under current latency budget.
+          </div>
+          <div class="note">Set fallback to Sentinel-Edge for peak traffic.</div>
+        </div>
+
+        <button class="btn primary full">Approve and publish ranking</button>
+      </div>
+    </div>
+  </section>
+</div>
